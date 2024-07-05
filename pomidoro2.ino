@@ -8,23 +8,16 @@
 
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0);
 
-unsigned long counter = 0;
-
-volatile uint32_t debounce;
-volatile bool buttonStateChanged = false;
-volatile bool buttonState = LOW;
+enum DeviceState { OFF, RUNNING_25, RUNNING_5, ALARM_25, ALARM_5 };
+DeviceState currentState = OFF;
+unsigned long timerStart;
+unsigned long displayTimeout = 5000;
+const unsigned long interval25 = 12000; // 25UL * 60 * 1000;
+const unsigned long interval5 = 9000; // 5UL * 60 * 1000;
+const unsigned long alarmDuration = 3000;
+bool displayOn = false;
 
 unsigned long lastButtonPress = 0;
-bool longPressHandled = false;
-
-void interruptButtonHandler() {
-  if (digitalRead(BUTTON_PIN) == LOW || millis() - debounce >= 5) {
-    debounce = millis();
-
-    buttonState = digitalRead(BUTTON_PIN);
-    buttonStateChanged = true;
-  }
-}
 
 void setup() {
   Serial.begin(9600);
@@ -34,37 +27,64 @@ void setup() {
 }
 
 void loop() {
+  if (currentState == RUNNING_25 || currentState == RUNNING_5) {
+    if (true || displayOn) {
+      displayTimeRemaining();
+    }
+
+    if (millis() + 1000 - timerStart > ((currentState == RUNNING_25) ? interval25 : interval5)) {
+      currentState = (currentState == RUNNING_25) ? ALARM_25 : ALARM_5;
+      triggerAlarm();
+    } else if (millis() - lastButtonPress > displayTimeout) {
+      u8g2.clearBuffer();
+      u8g2.sendBuffer();
+      displayOn = false;
+    }
+  }
+
+  buttonLoop();
+}
+
+void resetTimer() {
+  timerStart = millis();
+  lastButtonPress = millis();
+}
+
+void displayTimeRemaining() {
+  unsigned long remaining = ((currentState == RUNNING_25) ? interval25 : interval5) - (millis() - timerStart);
+  unsigned int minutes = remaining / 60000;
+  unsigned int seconds = (remaining / 1000) % 60;
+  displayTime(minutes, seconds);
+}
+
+void displayTime(unsigned int minutes, unsigned int seconds) {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_crox5hb_tr);
-  u8g2.setCursor(0, 17);
-  u8g2.println(counter);
+  u8g2.setCursor(0, 28);
+  u8g2.print(minutes);
+  u8g2.print(":");
+  if (seconds < 10) u8g2.print("0");
+  u8g2.print(seconds);
   u8g2.sendBuffer();
-
-  if (buttonStateChanged) {
-    buttonStateChanged = false;
-
-    if (buttonState == LOW) {
-      lastButtonPress = millis();
-      longPressHandled = false;
-    } else {
-      lastButtonPress = millis();
-      onButtonShortPress();
-    }
-  }
-  // продолжается удержание
-  else if (buttonState == HIGH && !longPressHandled) {
-    if (millis() - lastButtonPress > 1000) {
-      longPressHandled = true;
-      onButtonLongPress();
-    }
-  }
 }
 
-void onButtonShortPress() {
-  counter += 1;
-}
+void triggerAlarm() {
+  for (int i = 0; i < 3; i++) {
+    displayTime(0, 0);
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(500);
+    u8g2.clearBuffer();
+    u8g2.sendBuffer();
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(500);
+  }
 
-void onButtonLongPress() {
-  counter += 10;
+  if (currentState == ALARM_25) {
+    resetTimer();
+    currentState = RUNNING_5;
+  } else {
+    resetTimer();
+    currentState = RUNNING_25;
+  }
 }
 
