@@ -3,7 +3,7 @@ volatile bool buttonStateChanged = false;
 volatile bool buttonState = LOW;
 bool longPressHandled = false;
 
-void interruptButtonHandler() {
+ISR(PCINT0_vect) {
   if (digitalRead(BUTTON_PIN) == LOW || millis() - debounce >= 5) {
     debounce = millis();
 
@@ -45,8 +45,7 @@ void onButtonShortPress() {
 
 void onButtonLongPress() {
   if (currentState == RUNNING_25 || currentState == RUNNING_5) {
-      currentState = OFF;
-      u8g2.clearBuffer();
-      u8g2.sendBuffer();
+    currentState = OFF;
+    oled.off();
   }
 }

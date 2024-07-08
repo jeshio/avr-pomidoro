@@ -1,12 +1,14 @@
-#include <Arduino.h>
-#include <U8g2lib.h>
-#include <SPI.h>
-#include <Wire.h>
+#include <avr/io.h>
+#include <avr/interrupt.h>
+// #include <TinyWireM.h>
+#include <Tiny4kOLED.h>
 
-#define BUTTON_PIN 2 // PB3
-#define BUZZER_PIN 3 // PB1
+#define BUTTON_PIN PB3
+#define BUZZER_PIN PB1
+#define LED_PIN PB4
 
-U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0);
+#define ATTINY_MHZ 8
+#define ONE_SECOND_MS 1000 / (16 / ATTINY_MHZ)
 
 enum DeviceState { OFF, RUNNING_25, RUNNING_5, ALARM_25, ALARM_5 };
 DeviceState currentState = OFF;
@@ -20,13 +22,24 @@ bool displayOn = false;
 unsigned long lastButtonPress = 0;
 
 void setup() {
-  Serial.begin(9600);
+  pinMode(BUTTON_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  u8g2.begin();
-  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), interruptButtonHandler, CHANGE);
+
+  // TinyWireM.begin();
+  oled.begin(128, 32, sizeof(tiny4koled_init_128x32br), tiny4koled_init_128x32br);
+  oled.setFont(FONT8X16);
+  oled.clear();
+  oled.off();
+
+  // Enable pin change interrupt on PB3
+  GIMSK |= _BV(PCIE);
+  PCMSK |= _BV(PCINT3);
+  sei(); // Enable global interrupts
 }
 
 void loop() {
+  buttonLoop();
+  
   if (currentState == RUNNING_25 || currentState == RUNNING_5) {
     if (true || displayOn) {
       displayTimeRemaining();
@@ -36,13 +49,18 @@ void loop() {
       currentState = (currentState == RUNNING_25) ? ALARM_25 : ALARM_5;
       triggerAlarm();
     } else if (millis() - lastButtonPress > displayTimeout) {
-      u8g2.clearBuffer();
-      u8g2.sendBuffer();
+      oled.off();
       displayOn = false;
     }
   }
 
-  buttonLoop();
+}
+
+void debugLed() {
+  digitalWrite(LED_PIN, HIGH);
+  delay(500);
+  digitalWrite(LED_PIN, LOW);
+  delay(500);
 }
 
 void resetTimer() {
@@ -58,14 +76,13 @@ void displayTimeRemaining() {
 }
 
 void displayTime(unsigned int minutes, unsigned int seconds) {
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_crox5hb_tr);
-  u8g2.setCursor(0, 28);
-  u8g2.print(minutes);
-  u8g2.print(":");
-  if (seconds < 10) u8g2.print("0");
-  u8g2.print(seconds);
-  u8g2.sendBuffer();
+  oled.clear();
+  oled.setCursor(0, 2);
+  oled.print(minutes);
+  oled.print(":");
+  if (seconds < 10) oled.print("0");
+  oled.print(seconds);
+  oled.on();
 }
 
 void triggerAlarm() {
@@ -73,8 +90,7 @@ void triggerAlarm() {
     displayTime(0, 0);
     digitalWrite(BUZZER_PIN, HIGH);
     delay(500);
-    u8g2.clearBuffer();
-    u8g2.sendBuffer();
+    oled.off();
     digitalWrite(BUZZER_PIN, LOW);
     delay(500);
   }
