@@ -4,12 +4,21 @@ volatile bool buttonState = LOW;
 bool longPressHandled = false;
 
 ISR(PCINT0_vect) {
-  if (digitalRead(BUTTON_PIN) == LOW || millis() - debounce >= 5) {
-    debounce = millis();
+  if (digitalRead(BUTTON_PIN) == LOW || realMillis() - debounce >= 10) {
+    debounce = realMillis();
 
     buttonState = digitalRead(BUTTON_PIN);
     buttonStateChanged = true;
   }
+}
+
+void setupButton() {
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  // Enable pin change interrupt on PB3
+  GIMSK |= _BV(PCIE);
+  PCMSK |= _BV(PCINT3);
+  sei(); // Enable global interrupts
 }
 
 void buttonLoop() {
@@ -17,16 +26,16 @@ void buttonLoop() {
     buttonStateChanged = false;
 
     if (buttonState == LOW) {
-      lastButtonPress = millis();
+      lastButtonPress = realMillis();
       longPressHandled = false;
     } else {
-      lastButtonPress = millis();
+      lastButtonPress = realMillis();
       onButtonShortPress();
     }
   }
   // продолжается удержание
   else if (buttonState == HIGH && !longPressHandled) {
-    if (millis() - lastButtonPress > 1000) {
+    if (realMillis() - lastButtonPress > 1000) {
       longPressHandled = true;
       onButtonLongPress();
     }
@@ -34,6 +43,7 @@ void buttonLoop() {
 }
 
 void onButtonShortPress() {
+  oled.on();
   if (currentState == OFF) {
       resetTimer();
       currentState = RUNNING_25;
