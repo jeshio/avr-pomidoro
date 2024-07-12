@@ -10,7 +10,7 @@ DeviceState currentState = OFF;
 unsigned long timerStart;
 unsigned long displayTimeout = 5000;
 const unsigned long interval25 = 25UL * 60 * 1000;
-const unsigned long interval5 = 9000; // 5UL * 60 * 1000;
+const unsigned long interval5 = c5UL * 60 * 1000;
 const unsigned long alarmDuration = 3000;
 bool displayOn = false;
 
@@ -47,6 +47,7 @@ void loop() {
 }
 
 void resetTimer() {
+  oled.clear();
   timerStart = realMillis();
   lastButtonPress = realMillis();
 }

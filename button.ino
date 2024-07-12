@@ -35,7 +35,7 @@ void buttonLoop() {
   }
   // продолжается удержание
   else if (buttonState == HIGH && !longPressHandled) {
-    if (realMillis() - lastButtonPress > 1000) {
+    if (realMillis() - lastButtonPress > 3000) {
       longPressHandled = true;
       onButtonLongPress();
     }
