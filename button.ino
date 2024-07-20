@@ -4,7 +4,7 @@ volatile bool buttonState = LOW;
 bool longPressHandled = false;
 
 ISR(PCINT0_vect) {
-  if (digitalRead(BUTTON_PIN) == LOW || realMillis() - debounce >= 10) {
+  if (digitalRead(BUTTON_PIN) == LOW || realMillis() - debounce >= 50) {
     debounce = realMillis();
 
     buttonState = digitalRead(BUTTON_PIN);
@@ -43,12 +43,13 @@ void buttonLoop() {
 }
 
 void onButtonShortPress() {
-  oled.on();
   if (currentState == OFF) {
       resetTimer();
       currentState = RUNNING_25;
+      oled.on();
   }
   else if (currentState == RUNNING_25 || currentState == RUNNING_5) {
+      oled.on();
       displayOn = true;
   }
 }

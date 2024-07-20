@@ -1,6 +1,6 @@
-#define F_CPU 8000000UL
-#define TIMER_INTERVAL 2UL
+#define TIMER_INTERVAL 8UL
 #define ONE_SECOND_MS 1000 / TIMER_INTERVAL
+#define CORRECTION_FACTOR 0.9677
 
 volatile unsigned long timerMillis = 0;
 
@@ -33,7 +33,7 @@ void setupTimer() {
   TCCR0B |= (1 << CS01) | (1 << CS00);  // Prescaler 64
 
   // Calculate and set OCR0A for 4 ms interrupt
-  OCR0A = (F_CPU / 64 / 1000 * TIMER_INTERVAL) - 1;
+  OCR0A = (uint8_t)((F_CPU / 64 / 1000 * TIMER_INTERVAL * CORRECTION_FACTOR) - 1);
 
   // Enable Timer0 compare interrupt
   TIMSK |= (1 << OCIE0A);

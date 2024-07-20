@@ -2,6 +2,7 @@
 #include <avr/interrupt.h>
 #include <Tiny4kOLED.h>
 
+#define LED_PIN PB4
 #define BUTTON_PIN PB3
 #define BUZZER_PIN PB1
 
@@ -10,13 +11,19 @@ DeviceState currentState = OFF;
 unsigned long timerStart;
 unsigned long displayTimeout = 5000;
 const unsigned long interval25 = 25UL * 60 * 1000;
-const unsigned long interval5 = c5UL * 60 * 1000;
+const unsigned long interval5 = 5UL * 60 * 1000;
 const unsigned long alarmDuration = 3000;
 bool displayOn = false;
 
 unsigned long lastButtonPress = 0;
 
 void setup() {
+  pinMode(LED_PIN, OUTPUT);
+
+  digitalWrite(LED_PIN, HIGH);
+  delay(1000);
+  digitalWrite(LED_PIN, LOW);
+
   oled.begin(128, 32, sizeof(tiny4koled_init_128x32br), tiny4koled_init_128x32br);
   oled.setFont(FONT8X16);
   oled.clear();
@@ -25,13 +32,17 @@ void setup() {
   setupButton();
 
   setupTimer();
+
+  // set clock to 250 kHz
+  CLKPR = (1 << CLKPCE); // Enable change of the clock prescaler
+  CLKPR = (1 << CLKPS1); // Set the clock prescaler to 4
 }
 
 void loop() {
   buttonLoop();
   
   if (currentState == RUNNING_25 || currentState == RUNNING_5) {
-    if (true || displayOn) {
+    if (displayOn) {
       displayTimeRemaining();
     }
 
